@@ -12,34 +12,40 @@ platforms = ["mac", "mac-arm64", "linux", "linux-arm64", "win32_x64"]
 
 # TODO: Strict with this version for now. Find the way to 
 # bump this version.
-cli_version = "1.38.0"
+cli_version = "1.39.0"
 file_prefix = "playwright-#{cli_version}"
 
-for platform <- platforms do
-  destination = Path.join(["priv", "driver-bundle", platform])
-  File.mkdir_p!(destination)
+File.rm_rf!(Path.join(["priv", "driver-bundle"]))
 
-  filename = "#{file_prefix}-#{platform}.zip"
-  url = "#{url}/#{filename}"
+platforms
+|> Task.async_stream(
+  fn platform ->
+    destination = Path.join(["priv", "driver-bundle", platform])
+    File.mkdir_p!(destination)
 
-  IO.puts("""
-  Downloading driver for #{platform}
-  Using url: #{url}
-  """)
+    filename = "#{file_prefix}-#{platform}.zip"
+    url = "#{url}/#{filename}"
 
-  # TODO: match next version here.
-  {:ok, {{_, 200, _}, _, zip}} = :httpc.request(url)
-  File.write!(filename, zip)
-  {:ok, _} = :zip.unzip(String.to_charlist(filename), cwd: String.to_charlist(destination))
-  File.rm_rf!(filename)
-  # Erlang :zip module doesn't keep permission after unzip the file.
-  case platform do
-    "win32_x64" ->
-      File.chmod!(Path.join([destination, "node.exe"]), 0o755)
-      File.chmod!(Path.join([destination, "playwright.cmd"]), 0o755)
+    IO.puts("#{platform}: Downloading driver for #{platform} using url #{url}")
 
-    _ ->
-      File.chmod!(Path.join([destination, "node"]), 0o755)
-      File.chmod!(Path.join([destination, "playwright.sh"]), 0o755)
-  end
-end
+    # TODO: match next version here.
+    {:ok, {{_, 200, _}, _, zip}} = :httpc.request(url)
+    File.write!(filename, zip)
+    {:ok, _} = :zip.unzip(String.to_charlist(filename), cwd: String.to_charlist(destination))
+    File.rm_rf!(filename)
+    # Erlang :zip module doesn't keep permission after unzip the file.
+    case platform do
+      "win32_x64" ->
+        File.chmod!(Path.join([destination, "node.exe"]), 0o755)
+        File.chmod!(Path.join([destination, "playwright.cmd"]), 0o755)
+
+      _ ->
+        File.chmod!(Path.join([destination, "node"]), 0o755)
+        File.chmod!(Path.join([destination, "playwright.sh"]), 0o755)
+    end
+
+    IO.puts("#{platform}: Done")
+  end,
+  timeout: :timer.minutes(10)
+)
+|> Stream.run()

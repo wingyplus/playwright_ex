@@ -6,7 +6,7 @@ defmodule Playwright.Process do
   use GenServer
 
   def start_link(args \\ []) do
-    GenServer.start_link(__MODULE__, args, name: __MODULE__)
+    GenServer.start_link(__MODULE__, args)
   end
 
   @doc """

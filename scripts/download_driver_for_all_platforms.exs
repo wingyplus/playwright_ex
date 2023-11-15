@@ -32,4 +32,14 @@ for platform <- platforms do
   File.write!(filename, zip)
   {:ok, _} = :zip.unzip(String.to_charlist(filename), cwd: String.to_charlist(destination))
   File.rm_rf!(filename)
+  # Erlang :zip module doesn't keep permission after unzip the file.
+  case platform do
+    "win32_x64" ->
+      File.chmod!(Path.join([destination, "node.exe"]), 0o755)
+      File.chmod!(Path.join([destination, "playwright.cmd"]), 0o755)
+
+    _ ->
+      File.chmod!(Path.join([destination, "node"]), 0o755)
+      File.chmod!(Path.join([destination, "playwright.sh"]), 0o755)
+  end
 end

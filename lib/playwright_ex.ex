@@ -13,6 +13,8 @@ defmodule PlaywrightEx do
 
   def create(opts \\ []) do
     {:ok, opts} = NimbleOptions.validate!(opts, @options)
-    opts
+    # TODO: Re-enable it after we have force install option.
+    # PlaywrightEx.Driver.create_and_install(opts[:env])
+    PlaywrightEx.Driver.ensure_driver_installed(opts[:env])
   end
 end

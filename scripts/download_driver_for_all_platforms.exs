@@ -4,15 +4,16 @@
 # The benefit of using Elixir script is that we can use it for all platforms 
 # (Linux, Windows, macOS, etc) that Elixir and Erlang/OTP supported.
 
-Application.ensure_all_started(:ssl)
-Application.ensure_all_started(:inets)
+# TODO: maybe converting it to Mix.Tasks.
+
+Mix.install([:req])
 
 url = "https://playwright.azureedge.net/builds/driver"
 platforms = ["mac", "mac-arm64", "linux", "linux-arm64", "win32_x64"]
 
 # TODO: Strict with this version for now. Find the way to 
 # bump this version.
-cli_version = "1.39.0"
+cli_version = "1.48.0"
 file_prefix = "playwright-#{cli_version}"
 
 File.rm_rf!(Path.join(["priv", "driver-bundle"]))
@@ -29,19 +30,19 @@ platforms
     IO.puts("#{platform}: Downloading driver for #{platform} using url #{url}")
 
     # TODO: match next version here.
-    {:ok, {{_, 200, _}, _, zip}} = :httpc.request(url)
-    File.write!(filename, zip)
-    {:ok, _} = :zip.unzip(String.to_charlist(filename), cwd: String.to_charlist(destination))
-    File.rm_rf!(filename)
+    for {path, content} <- Req.get!(url).body do
+      path = Path.join(destination, path)
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, content)
+    end
+
     # Erlang :zip module doesn't keep permission after unzip the file.
     case platform do
       "win32_x64" ->
         File.chmod!(Path.join([destination, "node.exe"]), 0o755)
-        File.chmod!(Path.join([destination, "playwright.cmd"]), 0o755)
 
       _ ->
         File.chmod!(Path.join([destination, "node"]), 0o755)
-        File.chmod!(Path.join([destination, "playwright.sh"]), 0o755)
     end
 
     IO.puts("#{platform}: Done")
